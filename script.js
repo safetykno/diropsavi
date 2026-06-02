@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════
-// FIREBASE + LOCALSTORAGE HYBRID STORAGE 
+// FIREBASE + LOCALSTORAGE HYBRID STORAGE
 // ═══════════════════════════════════════════════════
 const LS_KEY       = 'dirops_v1_data';
 const LS_CFG_KEY   = 'ikera_firebase_config';
@@ -3662,11 +3662,11 @@ function updateConnectionBadge(){
   el.title=_apiConnected?'Database MySQL terhubung':'Database tidak terhubung';
 }
 function clearLocalStorage(){ if(!confirm('Reset semua data ke kondisi awal?')) return; localStorage.removeItem(LS_KEY); location.reload(); }
-function openFirebaseSetup(){ alert('Aplikasi menggunakan MySQL. Tidak perlu setup Firebase.'); }
-function saveFirebaseSetup(){}
-function retryFirebase(){}
-function disconnectAndResetFirebase(){}
-function getFirebaseConfig(){ return null; }
+// openFirebaseSetup handled above
+// saveFirebaseSetup handled above
+// retryFirebase handled above
+// disconnectAndResetFirebase handled above
+// getFirebaseConfig handled above — uses FIREBASE_CONFIG_DEFAULT
 
 // ════ AUTH ════
 function ensureAdminUser(){
@@ -3817,6 +3817,9 @@ function renderGroupHeader(name,count){
   document.querySelector('.main').style.visibility='hidden';
   try{ localStorage.removeItem('ikera_v2_data'); localStorage.removeItem('ikera_v3_data'); }catch(e){}
   loadFromLocalStorage();
+  // Init Firebase dengan config default
+  const _fbCfg = getFirebaseConfig();
+  if(_fbCfg) initFirebase(_fbCfg);
   ensureAdminUser();
   syncKPIsFromPrograms(); autoCheckAuditOverdue(); autoCheckLicenseStatus(); updateBadges(); updateConnectionBadge();
   const token=getStoredToken(); const sess=getSession();
