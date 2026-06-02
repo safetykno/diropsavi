@@ -2166,20 +2166,64 @@ function getPOEWS(po){
   return{level:(em[a.status]||'')+' '+a.status,color:a.color,icon:a.icon,reason:a.causes[0]||'Perlu monitoring',riskPct:a.riskPct,analysis:a};
 }
 
+// Filter state untuk EWS tab
+let _ewsFilter = {jenis:'semua', divisi:'semua', unit:'semua'};
+
+function applyEWSFilter(){
+  _ewsFilter.jenis  = document.getElementById('ews-f-jenis')?.value  || 'semua';
+  _ewsFilter.divisi = document.getElementById('ews-f-divisi')?.value || 'semua';
+  _ewsFilter.unit   = document.getElementById('ews-f-unit')?.value   || 'semua';
+  renderProcEWSTab();
+}
+
 function renderProcEWSTab(){
   const el=document.getElementById('proc-tab-content'); if(!el) return;
-  const ewsPOs=DB.procurement.map(po=>({po,ews:getPOEWS(po)})).filter(x=>x.ews!==null);
-  const ewsHigh=ewsPOs.filter(x=>x.ews.color==='#d32f2f').length;
-  const ewsMid=ewsPOs.filter(x=>x.ews.color==='#ef6c00').length;
+  let allEWS=DB.procurement.map(po=>({po,ews:getPOEWS(po)})).filter(x=>x.ews!==null);
+
+  // Terapkan filter
+  let ewsPOs=allEWS.filter(({po})=>{
+    if(_ewsFilter.jenis!=='semua' && po.jenis!==_ewsFilter.jenis) return false;
+    const u=DB.units.find(x=>x.id===po.unitId);
+    if(_ewsFilter.divisi!=='semua' && (!u||u.divisi!==_ewsFilter.divisi)) return false;
+    if(_ewsFilter.unit!=='semua' && po.unitId!==_ewsFilter.unit) return false;
+    return true;
+  });
+
+  const ewsHigh=ewsPOs.filter(x=>x.ews.color=='#d32f2f').length;
+  const hasFilter=_ewsFilter.jenis!=='semua'||_ewsFilter.divisi!=='semua'||_ewsFilter.unit!=='semua';
+
+  // Filter bar
+  const filtUnits=_ewsFilter.divisi==='semua'?DB.units:DB.units.filter(u=>u.divisi===_ewsFilter.divisi);
+  const filterBar=`<div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;margin-bottom:10px">
+    <div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px">
+      <span style="font-size:10px;font-weight:700;color:var(--t3)"><i class="fa fa-filter"></i> FILTER:</span>
+      <select id="ews-f-jenis" class="form-select" style="padding:4px 8px;font-size:11px;width:auto" onchange="applyEWSFilter()">
+        <option value="semua"${_ewsFilter.jenis==='semua'?' selected':''}>Semua Jenis</option>
+        <option value="Capex"${_ewsFilter.jenis==='Capex'?' selected':''}>&#9632; Capex</option>
+        <option value="Opex"${_ewsFilter.jenis==='Opex'?' selected':''}>&#9632; Opex</option>
+      </select>
+      <select id="ews-f-divisi" class="form-select" style="padding:4px 8px;font-size:11px;width:auto" onchange="_ewsFilter.divisi=this.value;_ewsFilter.unit='semua';applyEWSFilter()">
+        <option value="semua"${_ewsFilter.divisi==='semua'?' selected':''}>Semua Divisi</option>
+        ${DB.divisions.map(d=>`<option value="${d}"${_ewsFilter.divisi===d?' selected':''} >${d}</option>`).join('')}
+      </select>
+      <select id="ews-f-unit" class="form-select" style="padding:4px 8px;font-size:11px;width:auto" onchange="applyEWSFilter()">
+        <option value="semua">Semua Unit</option>
+        ${filtUnits.map(u=>`<option value="${u.id}"${_ewsFilter.unit===u.id?' selected':''} >${u.name}</option>`).join('')}
+      </select>
+      ${hasFilter?`<button class="btn btn-sm btn-danger" onclick="_ewsFilter={jenis:'semua',divisi:'semua',unit:'semua'};renderProcEWSTab()"><i class="fa fa-rotate-left"></i> Reset</button>`:''}
+      ${hasFilter?`<span style="font-size:10px;color:var(--accent);background:rgba(26,140,255,.08);border:1px solid rgba(26,140,255,.2);border-radius:6px;padding:3px 8px"><i class="fa fa-filter"></i> ${ewsPOs.length} dari ${allEWS.length} EWS</span>`:''}
+    </div>
+  </div>`;
+
   if(!ewsPOs.length){
-    el.innerHTML='<div style="text-align:center;padding:60px;color:var(--t3)"><i class="fa fa-circle-check" style="font-size:48px;color:var(--success);display:block;margin-bottom:16px"></i><div style="font-size:15px;font-weight:600;color:var(--success)">Semua PO On Track</div><div style="font-size:12px;margin-top:6px">Tidak ada paket yang terdeteksi berisiko.</div></div>';
+    el.innerHTML=filterBar+'<div style="text-align:center;padding:60px;color:var(--t3)"><i class="fa fa-circle-check" style="font-size:48px;color:var(--success);display:block;margin-bottom:16px"></i><div style="font-size:15px;font-weight:600;color:var(--success)">'+(hasFilter?'Tidak ada EWS sesuai filter':'Semua PO On Track')+'</div><div style="font-size:12px;margin-top:6px">'+(hasFilter?'Coba ubah atau reset filter.':'Tidak ada paket yang terdeteksi berisiko.')+'</div></div>';
     return;
   }
-  el.innerHTML=`<div style="background:var(--bg2);border:1px solid ${ewsHigh>0?'rgba(211,47,47,.4)':'rgba(239,108,0,.3)'};border-radius:10px;padding:14px 16px">
+  el.innerHTML=filterBar+`<div style="background:var(--bg2);border:1px solid ${ewsHigh>0?'rgba(211,47,47,.4)':'rgba(239,108,0,.3)'};border-radius:10px;padding:14px 16px">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
       <div>
         <div style="font-size:13px;font-weight:700;color:${ewsHigh>0?'#ff6b6b':'var(--warn)'}"><i class="fa fa-radar"></i> &nbsp;EWS PEKERJAAN PENGADAAN</div>
-        <div style="font-size:10px;color:var(--t3);margin-top:2px">${ewsPOs.length} paket terdeteksi berisiko — klik <i class="fa fa-magnifying-glass"></i> untuk detail, klik area keterangan untuk tambah catatan</div>
+        <div style="font-size:10px;color:var(--t3);margin-top:2px">${ewsPOs.length} paket terdeteksi berisiko</div>
       </div>
       <div style="display:flex;gap:6px;flex-wrap:wrap">
         ${ewsPOs.filter(x=>x.ews.color==='#d32f2f').length?`<span style="background:#d32f2f20;color:#ff6b6b;border:1px solid #d32f2f40;padding:3px 10px;border-radius:8px;font-size:10px;font-weight:700">🔴 Risiko: ${ewsPOs.filter(x=>x.ews.color==='#d32f2f').length}</span>`:''}
@@ -2205,7 +2249,7 @@ function renderProcEWSTab(){
           ${ewsPOs.sort((a,b)=>b.ews.riskPct-a.ews.riskPct).map(({po,ews})=>{
             const a=ews.analysis||{};
             const ket=po.ewsKeterangan||'';
-            return `<tr style="border-bottom:1px solid var(--border)${a.isStagnant?';background:rgba(255,59,59,.03)':''}">
+            return `<tr style="border-bottom:1px solid var(--border)${a.isStagnant?";background:rgba(255,59,59,.03)":""}">
               <td style="padding:8px 10px">
                 <div style="font-weight:600;font-size:11px;white-space:normal;word-break:break-word;min-width:160px;max-width:220px">${po.item}</div>
                 <div style="font-size:9px;color:var(--t3)">${unitName(po.unitId)} · <span style="color:${po.jenis==='Capex'?'var(--accent)':'var(--purple)'}">${po.jenis||'—'}</span> · Rp ${po.value||0}Jt</div>
@@ -2227,7 +2271,7 @@ function renderProcEWSTab(){
               <td style="padding:8px">
                 <div style="font-size:10px;color:var(--t2)">${a.currentPhase||'—'}</div>
                 ${a.currentTask?`<div style="font-size:9px;color:var(--t3);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">→ ${a.currentTask.text}</div>`:''}
-                ${a.isStagnant?`<div style="font-size:9px;color:var(--danger);font-weight:600">⚠ STAGNAN</div>`:''}
+                ${a.isStagnant?'<div style="font-size:9px;color:var(--danger);font-weight:600">⚠ STAGNAN</div>':''}
               </td>
               <td style="padding:8px;text-align:center">
                 ${(a.estDelay||0)>0?`<span style="color:var(--danger);font-weight:700">+${a.estDelay}h</span>`:`<span style="color:var(--t3)">—</span>`}
