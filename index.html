@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DIROPS MONITORING — PT Angkasa Pura Aviasi</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<!-- ═══════ LOGIN SCREEN ═══════ -->
+<div id="login-screen" style="position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px">
+  <div style="width:100%;max-width:400px">
+    <div style="text-align:center;margin-bottom:32px">
+      <div style="width:64px;height:64px;background:linear-gradient(135deg,var(--accent),var(--purple));border-radius:16px;display:inline-flex;align-items:center;justify-content:center;font-size:22px;font-weight:800;color:#fff;margin-bottom:12px">DM</div>
+      <div style="font-size:22px;font-weight:800;color:var(--t1);letter-spacing:.5px">DIROPS MONITORING</div>
+      <div style="font-size:12px;color:var(--t3);margin-top:4px">PT Angkasa Pura Aviasi — Direktorat Operasi</div>
+    </div>
+    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:28px">
+      <div style="font-size:15px;font-weight:700;margin-bottom:20px">Masuk ke Sistem</div>
+      <div id="login-error" style="display:none;background:rgba(255,59,59,.1);border:1px solid rgba(255,59,59,.25);border-radius:8px;padding:10px 12px;font-size:11px;color:#ff6b6b;margin-bottom:14px"></div>
+      <div style="margin-bottom:12px">
+        <label style="font-size:10px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:5px">Email</label>
+        <input id="login-email" class="form-input" type="email" placeholder="email@aviasi.co.id" autocomplete="username" onkeypress="if(event.key==='Enter')document.getElementById('login-pass').focus()">
+      </div>
+      <div style="margin-bottom:20px">
+        <label style="font-size:10px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:5px">Password</label>
+        <div style="position:relative">
+          <input id="login-pass" class="form-input" type="password" placeholder="••••••••" autocomplete="current-password" onkeypress="if(event.key==='Enter')doLogin()" style="padding-right:36px">
+          <button onclick="toggleLoginPw()" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--t3);font-size:13px" tabindex="-1"><i id="pw-eye" class="fa fa-eye"></i></button>
+        </div>
+      </div>
+      <button onclick="doLogin()" class="btn btn-primary" style="width:100%;justify-content:center;padding:10px;font-size:13px;font-weight:600">
+        <i class="fa fa-arrow-right-to-bracket"></i> Masuk
+      </button>
+
+    </div>
+  </div>
+</div>
+
+<div class="sidebar" id="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-icon">IK</div>
+    <div><div class="logo-text">DIROPS</div><div class="logo-sub">Direktorat Operasi · AVI</div></div>
+  </div>
+  <nav style="flex:1;overflow-y:auto;padding:8px 0">
+    <div class="nav-section">Utama</div>
+    <div class="nav-item active" data-view="dashboard"><i class="fa fa-gauge-high"></i><span>Dashboard</span></div>
+    <div class="nav-item" data-view="integrated"><i class="fa fa-layer-group"></i><span>Input Terintegrasi</span></div>
+    <div class="nav-section">Monitoring</div>
+    <div class="nav-item" data-view="kpi"><i class="fa fa-bullseye"></i><span>KPI Management</span></div>
+    <div class="nav-item" data-view="program"><i class="fa fa-list-check"></i><span>Program Kerja</span></div>
+    <div class="nav-item" data-view="risk"><i class="fa fa-shield-halved"></i><span>Risk & EWS</span><span class="nav-badge" id="badge-ews" style="display:none">0</span></div>
+    <div class="nav-section">Operasional</div>
+    <div class="nav-item" data-view="procurement"><i class="fa fa-cart-shopping"></i><span>Pengadaan</span></div>
+    <div class="nav-item" data-view="asset"><i class="fa fa-microchip"></i><span>Asset & CMMS</span></div>
+    <div class="nav-section">Kepatuhan</div>
+    <div class="nav-item" data-view="audit"><i class="fa fa-clipboard-check"></i><span>Finding</span><span class="nav-badge warn" id="badge-audit" style="display:none">0</span></div>
+    <div class="nav-item" data-view="license"><i class="fa fa-id-card"></i><span>Lisensi & SOP</span><span class="nav-badge" id="badge-lic" style="display:none">0</span></div>
+    <div class="nav-section">Administrasi</div>
+    <div class="nav-item" data-view="units"><i class="fa fa-sitemap"></i><span>Unit Management</span></div>
+    <div class="nav-item" data-view="users"><i class="fa fa-users"></i><span>User Management</span></div>
+    <div class="nav-item" data-view="settings"><i class="fa fa-gear"></i><span>Settings & Backup</span></div>
+  </nav>
+  <div class="sidebar-user">
+    <div class="user-av" id="sidebar-av">DM</div>
+    <div class="user-info" style="flex:1;min-width:0">
+      <div class="name" id="sidebar-name">—</div>
+      <div class="role" id="sidebar-role">—</div>
+    </div>
+    <button onclick="doLogout()" title="Keluar" style="background:none;border:none;cursor:pointer;color:var(--t3);font-size:14px;padding:4px;flex-shrink:0" onmouseover="this.style.color='var(--danger)'" onmouseout="this.style.color='var(--t3)'"><i class="fa fa-right-from-bracket"></i></button>
+  </div>
+</div>
+<div class="main">
+  <div class="topbar">
+    <button class="btn btn-sm" id="sidebar-toggle" onclick="toggleSidebar()" style="display:none"><i class="fa fa-bars"></i></button>
+    <div class="page-title" id="page-title">Executive Dashboard</div>
+    <div class="topbar-actions">
+      <span id="save-indicator" style="font-size:10px;opacity:0;transition:opacity .4s;margin-right:4px"></span>
+      <span id="fb-status" style="font-size:16px;cursor:pointer;margin-right:4px" onclick="showView('settings')" title="Status Firebase"></span>
+      <button class="btn" onclick="exportData()"><i class="fa fa-download"></i> Export</button>
+      <button class="btn btn-primary" id="topbar-add-btn" onclick="openAddModal()"><i class="fa fa-plus"></i> <span id="add-label">Tambah</span></button>
+      <button class="notif-btn" onclick="showView('risk')"><i class="fa fa-bell"></i><div class="notif-dot blink-dot"></div></button>
+    </div>
+  </div>
+  <div class="content fade-in" id="content"></div>
+</div>
+<div class="modal-overlay" id="modal-overlay" onclick="closeModal(event)">
+  <div class="modal">
+    <div class="modal-hd">
+      <div class="modal-title" id="modal-title">Form</div>
+      <button class="modal-close" onclick="closeModalDirect()"><i class="fa fa-xmark"></i></button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+  </div>
+</div>
+
+<!-- Firebase SDK v8 (compat) — WAJIB sebelum script.js -->
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+<script src="script.js?v=30"></script>
+</body>
+</html>
