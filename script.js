@@ -109,25 +109,10 @@ let fbDb  = null;
 let fbConnected = false;
 let _saveTimer  = null;
 
-// ── Default Firebase config (hardcoded) ──
-const FIREBASE_CONFIG_DEFAULT = {
-  apiKey:            "AIzaSyAwTzNZeBo2I8SH4gtuq5A4RR0dct1A4BE",
-  authDomain:        "dirops-monitoring-avi.firebaseapp.com",
-  databaseURL:       "https://dirops-monitoring-avi-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId:         "dirops-monitoring-avi",
-  storageBucket:     "dirops-monitoring-avi.firebasestorage.app",
-  messagingSenderId: "74500888017",
-  appId:             "1:74500888017:web:0d82c3f03973b4dd66bcf0",
-  measurementId:     "G-PYQN2HRC40"
-};
-
-// ── Ambil config Firebase (localStorage override, fallback ke default) ──
+// ── Ambil config Firebase (tersimpan di localStorage) ──
 function getFirebaseConfig(){
-  try{
-    const stored = JSON.parse(localStorage.getItem(LS_CFG_KEY)||'null');
-    return stored || FIREBASE_CONFIG_DEFAULT;
-  }
-  catch(e){ return FIREBASE_CONFIG_DEFAULT; }
+  try{ return JSON.parse(localStorage.getItem(LS_CFG_KEY)||'null'); }
+  catch(e){ return null; }
 }
 function saveFirebaseConfig(cfg){
   localStorage.setItem(LS_CFG_KEY, JSON.stringify(cfg));
@@ -2166,64 +2151,20 @@ function getPOEWS(po){
   return{level:(em[a.status]||'')+' '+a.status,color:a.color,icon:a.icon,reason:a.causes[0]||'Perlu monitoring',riskPct:a.riskPct,analysis:a};
 }
 
-// Filter state untuk EWS tab
-let _ewsFilter = {jenis:'semua', divisi:'semua', unit:'semua'};
-
-function applyEWSFilter(){
-  _ewsFilter.jenis  = document.getElementById('ews-f-jenis')?.value  || 'semua';
-  _ewsFilter.divisi = document.getElementById('ews-f-divisi')?.value || 'semua';
-  _ewsFilter.unit   = document.getElementById('ews-f-unit')?.value   || 'semua';
-  renderProcEWSTab();
-}
-
 function renderProcEWSTab(){
   const el=document.getElementById('proc-tab-content'); if(!el) return;
-  let allEWS=DB.procurement.map(po=>({po,ews:getPOEWS(po)})).filter(x=>x.ews!==null);
-
-  // Terapkan filter
-  let ewsPOs=allEWS.filter(({po})=>{
-    if(_ewsFilter.jenis!=='semua' && po.jenis!==_ewsFilter.jenis) return false;
-    const u=DB.units.find(x=>x.id===po.unitId);
-    if(_ewsFilter.divisi!=='semua' && (!u||u.divisi!==_ewsFilter.divisi)) return false;
-    if(_ewsFilter.unit!=='semua' && po.unitId!==_ewsFilter.unit) return false;
-    return true;
-  });
-
-  const ewsHigh=ewsPOs.filter(x=>x.ews.color=='#d32f2f').length;
-  const hasFilter=_ewsFilter.jenis!=='semua'||_ewsFilter.divisi!=='semua'||_ewsFilter.unit!=='semua';
-
-  // Filter bar
-  const filtUnits=_ewsFilter.divisi==='semua'?DB.units:DB.units.filter(u=>u.divisi===_ewsFilter.divisi);
-  const filterBar=`<div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;margin-bottom:10px">
-    <div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px">
-      <span style="font-size:10px;font-weight:700;color:var(--t3)"><i class="fa fa-filter"></i> FILTER:</span>
-      <select id="ews-f-jenis" class="form-select" style="padding:4px 8px;font-size:11px;width:auto" onchange="applyEWSFilter()">
-        <option value="semua"${_ewsFilter.jenis==='semua'?' selected':''}>Semua Jenis</option>
-        <option value="Capex"${_ewsFilter.jenis==='Capex'?' selected':''}>&#9632; Capex</option>
-        <option value="Opex"${_ewsFilter.jenis==='Opex'?' selected':''}>&#9632; Opex</option>
-      </select>
-      <select id="ews-f-divisi" class="form-select" style="padding:4px 8px;font-size:11px;width:auto" onchange="_ewsFilter.divisi=this.value;_ewsFilter.unit='semua';applyEWSFilter()">
-        <option value="semua"${_ewsFilter.divisi==='semua'?' selected':''}>Semua Divisi</option>
-        ${DB.divisions.map(d=>`<option value="${d}"${_ewsFilter.divisi===d?' selected':''} >${d}</option>`).join('')}
-      </select>
-      <select id="ews-f-unit" class="form-select" style="padding:4px 8px;font-size:11px;width:auto" onchange="applyEWSFilter()">
-        <option value="semua">Semua Unit</option>
-        ${filtUnits.map(u=>`<option value="${u.id}"${_ewsFilter.unit===u.id?' selected':''} >${u.name}</option>`).join('')}
-      </select>
-      ${hasFilter?`<button class="btn btn-sm btn-danger" onclick="_ewsFilter={jenis:'semua',divisi:'semua',unit:'semua'};renderProcEWSTab()"><i class="fa fa-rotate-left"></i> Reset</button>`:''}
-      ${hasFilter?`<span style="font-size:10px;color:var(--accent);background:rgba(26,140,255,.08);border:1px solid rgba(26,140,255,.2);border-radius:6px;padding:3px 8px"><i class="fa fa-filter"></i> ${ewsPOs.length} dari ${allEWS.length} EWS</span>`:''}
-    </div>
-  </div>`;
-
+  const ewsPOs=DB.procurement.map(po=>({po,ews:getPOEWS(po)})).filter(x=>x.ews!==null);
+  const ewsHigh=ewsPOs.filter(x=>x.ews.color==='#d32f2f').length;
+  const ewsMid=ewsPOs.filter(x=>x.ews.color==='#ef6c00').length;
   if(!ewsPOs.length){
-    el.innerHTML=filterBar+'<div style="text-align:center;padding:60px;color:var(--t3)"><i class="fa fa-circle-check" style="font-size:48px;color:var(--success);display:block;margin-bottom:16px"></i><div style="font-size:15px;font-weight:600;color:var(--success)">'+(hasFilter?'Tidak ada EWS sesuai filter':'Semua PO On Track')+'</div><div style="font-size:12px;margin-top:6px">'+(hasFilter?'Coba ubah atau reset filter.':'Tidak ada paket yang terdeteksi berisiko.')+'</div></div>';
+    el.innerHTML='<div style="text-align:center;padding:60px;color:var(--t3)"><i class="fa fa-circle-check" style="font-size:48px;color:var(--success);display:block;margin-bottom:16px"></i><div style="font-size:15px;font-weight:600;color:var(--success)">Semua PO On Track</div><div style="font-size:12px;margin-top:6px">Tidak ada paket yang terdeteksi berisiko.</div></div>';
     return;
   }
-  el.innerHTML=filterBar+`<div style="background:var(--bg2);border:1px solid ${ewsHigh>0?'rgba(211,47,47,.4)':'rgba(239,108,0,.3)'};border-radius:10px;padding:14px 16px">
+  el.innerHTML=`<div style="background:var(--bg2);border:1px solid ${ewsHigh>0?'rgba(211,47,47,.4)':'rgba(239,108,0,.3)'};border-radius:10px;padding:14px 16px">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
       <div>
         <div style="font-size:13px;font-weight:700;color:${ewsHigh>0?'#ff6b6b':'var(--warn)'}"><i class="fa fa-radar"></i> &nbsp;EWS PEKERJAAN PENGADAAN</div>
-        <div style="font-size:10px;color:var(--t3);margin-top:2px">${ewsPOs.length} paket terdeteksi berisiko</div>
+        <div style="font-size:10px;color:var(--t3);margin-top:2px">${ewsPOs.length} paket terdeteksi berisiko — klik <i class="fa fa-magnifying-glass"></i> untuk detail, klik area keterangan untuk tambah catatan</div>
       </div>
       <div style="display:flex;gap:6px;flex-wrap:wrap">
         ${ewsPOs.filter(x=>x.ews.color==='#d32f2f').length?`<span style="background:#d32f2f20;color:#ff6b6b;border:1px solid #d32f2f40;padding:3px 10px;border-radius:8px;font-size:10px;font-weight:700">🔴 Risiko: ${ewsPOs.filter(x=>x.ews.color==='#d32f2f').length}</span>`:''}
@@ -2249,7 +2190,7 @@ function renderProcEWSTab(){
           ${ewsPOs.sort((a,b)=>b.ews.riskPct-a.ews.riskPct).map(({po,ews})=>{
             const a=ews.analysis||{};
             const ket=po.ewsKeterangan||'';
-            return `<tr style="border-bottom:1px solid var(--border)${a.isStagnant?";background:rgba(255,59,59,.03)":""}">
+            return `<tr style="border-bottom:1px solid var(--border)${a.isStagnant?';background:rgba(255,59,59,.03)':''}">
               <td style="padding:8px 10px">
                 <div style="font-weight:600;font-size:11px;white-space:normal;word-break:break-word;min-width:160px;max-width:220px">${po.item}</div>
                 <div style="font-size:9px;color:var(--t3)">${unitName(po.unitId)} · <span style="color:${po.jenis==='Capex'?'var(--accent)':'var(--purple)'}">${po.jenis||'—'}</span> · Rp ${po.value||0}Jt</div>
@@ -2271,7 +2212,7 @@ function renderProcEWSTab(){
               <td style="padding:8px">
                 <div style="font-size:10px;color:var(--t2)">${a.currentPhase||'—'}</div>
                 ${a.currentTask?`<div style="font-size:9px;color:var(--t3);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">→ ${a.currentTask.text}</div>`:''}
-                ${a.isStagnant?'<div style="font-size:9px;color:var(--danger);font-weight:600">⚠ STAGNAN</div>':''}
+                ${a.isStagnant?`<div style="font-size:9px;color:var(--danger);font-weight:600">⚠ STAGNAN</div>`:''}
               </td>
               <td style="padding:8px;text-align:center">
                 ${(a.estDelay||0)>0?`<span style="color:var(--danger);font-weight:700">+${a.estDelay}h</span>`:`<span style="color:var(--t3)">—</span>`}
@@ -3362,20 +3303,31 @@ function openUserForm(){
   openModalDirect();
 }
 
-function saveNewUser(){
+async function saveNewUser(){
   const name=document.getElementById('nu2-name').value.trim();
   if(!name){alert('Nama wajib diisi');return;}
+  const email=document.getElementById('nu2-email').value.trim().toLowerCase();
+  if(!email){alert('Email wajib diisi');return;}
   const pass=document.getElementById('nu2-pass').value.trim();
-  if(!pass){alert('Password wajib diisi');return;}
-  DB.users.push({
-    id:uid(),name,
-    email:document.getElementById('nu2-email').value,
-    role:document.getElementById('nu2-role').value,
-    unit:document.getElementById('nu2-unit').value,
-    password:pass,
-    last:'Baru',status:'Active',isAdmin:false
-  });
-  scheduleSave();closeModalDirect();renderUsers();
+  if(!pass||pass.length<6){alert('Password wajib diisi minimal 6 karakter');return;}
+  const btn=document.querySelector('#modal-body .btn-primary');
+  if(btn){btn.disabled=true;btn.innerHTML='<i class="fa fa-spinner fa-spin"></i> Menyimpan...';}
+  try{
+    _initFirebaseOnce();
+    // Buat akun di Firebase Auth (pakai secondary app agar tidak logout user aktif)
+    const secApp = firebase.initializeApp(FIREBASE_CONFIG,'dirops-reg-'+Date.now());
+    const secAuth = secApp.auth();
+    await secAuth.createUserWithEmailAndPassword(email,pass);
+    await secAuth.signOut();
+    secApp.delete().catch(()=>{});
+    DB.users.push({id:uid(),name,email,role:document.getElementById('nu2-role').value,unit:document.getElementById('nu2-unit').value,password:pass,last:'Baru',status:'Active',isAdmin:false});
+    scheduleSave();closeModalDirect();renderUsers();
+    alert(`User "${name}" berhasil dibuat dan dapat login.`);
+  }catch(e){
+    if(btn){btn.disabled=false;btn.innerHTML='<i class="fa fa-save"></i> Simpan';}
+    const msg={'auth/email-already-in-use':'Email sudah terdaftar di sistem autentikasi.','auth/weak-password':'Password terlalu lemah (min 6 karakter).','auth/invalid-email':'Format email tidak valid.'}[e.code]||('Gagal membuat akun: '+(e.message||e.code));
+    alert(msg);
+  }
 }
 
 function editUser(idx){
@@ -3416,15 +3368,24 @@ function editUser(idx){
   openModalDirect();
 }
 
-function saveEditUser(idx){
+async function saveEditUser(idx){
   const u=DB.users[idx];if(!u)return;
   u.name=document.getElementById('eu-name').value.trim()||u.name;
-  u.email=document.getElementById('eu-email').value;
+  u.email=document.getElementById('eu-email').value.trim().toLowerCase()||u.email;
   u.role=document.getElementById('eu-role').value;
   u.unit=document.getElementById('eu-unit').value;
   u.status=document.getElementById('eu-status').value;
-  const newPass=document.getElementById('eu-pass').value;
-  if(newPass.trim()) u.password=newPass.trim();
+  const newPass=document.getElementById('eu-pass').value.trim();
+  if(newPass){
+    if(newPass.length<6){alert('Password minimal 6 karakter');return;}
+    u.password=newPass;
+    // Update password di Firebase Auth — user harus login ulang untuk apply
+    try{
+      _initFirebaseOnce();
+      const fbUser=_fbAuth.currentUser;
+      if(fbUser&&fbUser.email===u.email) await fbUser.updatePassword(newPass);
+    }catch(e){ console.warn('Update Firebase password:',e.message); }
+  }
   scheduleSave();closeModalDirect();renderUsers();
 }
 
@@ -3613,68 +3574,122 @@ function closeModal(e){if(e.target===document.getElementById('modal-overlay'))cl
 
 
 // ════════════════════════════════════════════════
-// STORAGE: PHP MySQL API + localStorage cache
+// STORAGE: Firebase Auth + Realtime Database
 // ════════════════════════════════════════════════
-const API_URL     = 'api.php';
-let _sessionToken = null;
+
+// ── Firebase Config — ganti dengan config project Anda ──
+const FIREBASE_CONFIG = {
+  apiKey:            "PASTE_API_KEY_HERE",
+  authDomain:        "dirops-monitoring-avi.firebaseapp.com",
+  databaseURL:       "https://dirops-monitoring-avi-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId:         "dirops-monitoring-avi",
+  storageBucket:     "dirops-monitoring-avi.appspot.com",
+  messagingSenderId: "PASTE_MESSAGING_SENDER_ID_HERE",
+  appId:             "PASTE_APP_ID_HERE"
+};
+
+const FB_DATA_PATH = 'dirops/data';
+let _fbApp      = null;
+let _fbDb       = null;
+let _fbAuth     = null;
 let _apiConnected = false;
+
+function _initFirebaseOnce(){
+  if(_fbApp) return;
+  try{
+    _fbApp  = firebase.initializeApp(FIREBASE_CONFIG, 'dirops-main');
+    _fbDb   = _fbApp.database();
+    _fbAuth = _fbApp.auth();
+    _fbDb.ref('.info/connected').on('value', snap=>{
+      _apiConnected = !!snap.val();
+      updateConnectionBadge();
+    });
+    // Realtime listener — sync data dari Firebase ke lokal
+    _fbDb.ref(FB_DATA_PATH).on('value', snap=>{
+      const remote = snap.val();
+      if(!remote || !currentUser) return;
+      const ts = remote._saved||'';
+      if(DB._lastSave && ts === DB._lastSave) return;
+      const d = {...remote}; delete d._saved;
+      Object.assign(DB, d);
+      DB._lastSave = ts;
+      syncKPIsFromPrograms(); autoCheckAuditOverdue(); autoCheckLicenseStatus(); updateBadges();
+      const rv={dashboard:renderDashboard,integrated:renderIntegrated,kpi:renderKPI,program:renderProgram,risk:renderRisk,procurement:renderProcurement,asset:renderAsset,audit:renderAudit,license:renderLicense,units:renderUnits,users:renderUsers,settings:renderSettings};
+      if(rv[currentView]){destroyCharts();rv[currentView]();}
+    });
+  }catch(e){ console.error('Firebase init error:',e); }
+}
 
 function getSession(){ try{ return JSON.parse(sessionStorage.getItem(SESSION_KEY)||'null'); }catch(e){ return null; } }
 function setSession(u){ sessionStorage.setItem(SESSION_KEY, JSON.stringify(u)); }
 function clearSession(){ sessionStorage.removeItem(SESSION_KEY); }
 function getStoredToken(){ return sessionStorage.getItem('dirops_token')||null; }
 function setStoredToken(t){ if(t) sessionStorage.setItem('dirops_token',t); else sessionStorage.removeItem('dirops_token'); }
-function apiHeaders(){ const h={'Content-Type':'application/json'}; const t=getStoredToken(); if(t) h['X-Session-Token']=t; return h; }
 
-async function doLoginAPI(email,pass){
-  try{ const r=await fetch(`${API_URL}?action=login`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password:pass})}); return await r.json(); }
-  catch(e){ return {success:false,error:'Tidak dapat terhubung ke server'}; }
+async function doLoginAPI(email, pass){
+  _initFirebaseOnce();
+  try{
+    const cred = await _fbAuth.signInWithEmailAndPassword(email, pass);
+    const fbUid = cred.user.uid;
+    // Load data dari Firebase untuk cari profil user
+    const snap = await _fbDb.ref(FB_DATA_PATH).once('value');
+    const remote = snap.val();
+    if(remote){ const d={...remote}; delete d._saved; Object.assign(DB,d); DB._lastSave=remote._saved||''; }
+    ensureAdminUser();
+    const userProfile = DB.users.find(u=>u.email.toLowerCase()===email.toLowerCase()&&(u.status||'Active')!=='Inactive');
+    if(!userProfile) return {success:false, error:'Akun tidak ditemukan di sistem. Hubungi Administrator.'};
+    // Update last login
+    userProfile.last = new Date().toLocaleString('id-ID',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
+    saveToServer();
+    const userData = {id:userProfile.id,name:userProfile.name,email:userProfile.email,role:userProfile.role,unit:userProfile.unit,isAdmin:!!userProfile.isAdmin};
+    setStoredToken(fbUid);
+    return {success:true, token:fbUid, user:userData};
+  }catch(e){
+    const msg = {
+      'auth/user-not-found'  : 'Email tidak terdaftar di sistem autentikasi.',
+      'auth/wrong-password'  : 'Password salah.',
+      'auth/invalid-email'   : 'Format email tidak valid.',
+      'auth/too-many-requests': 'Terlalu banyak percobaan. Coba lagi beberapa saat.',
+      'auth/invalid-credential': 'Email atau password salah.',
+    }[e.code] || ('Login gagal: ' + (e.message||e.code));
+    return {success:false, error:msg};
+  }
 }
+
 async function doLogoutAPI(){
-  const t=getStoredToken(); if(t){ try{ await fetch(`${API_URL}?action=logout`,{method:'POST',headers:apiHeaders(),body:JSON.stringify({token:t})}); }catch(e){} } setStoredToken(null);
+  try{ if(_fbAuth) await _fbAuth.signOut(); }catch(e){}
+  setStoredToken(null);
 }
 let _dataVersion = null; // hash dari data yang terakhir diload/disimpan
 
 async function loadFromServer(){
+  _initFirebaseOnce();
   const t=getStoredToken(); if(!t) return false;
   try{
-    const r=await fetch(`${API_URL}?action=load`,{headers:apiHeaders()});
-    const j=await r.json();
-    if(j.success&&j.data){
-      Object.assign(DB,j.data);
-      _dataVersion = j.version || null;
-      _apiConnected=true;
-      return true;
-    }
-    if(!j.success&&j.error&&j.error.includes('Sesi')) setStoredToken(null);
-    return false;
+    const snap = await _fbDb.ref(FB_DATA_PATH).once('value');
+    const remote = snap.val();
+    if(!remote) return false;
+    const d={...remote}; delete d._saved;
+    Object.assign(DB,d);
+    DB._lastSave = remote._saved||'';
+    _dataVersion = DB._lastSave;
+    _apiConnected = true;
+    return true;
   }catch(e){ _apiConnected=false; return false; }
 }
 
 async function saveToServer(){
-  const t=getStoredToken(); if(!t){ _apiConnected=false; return false; }
+  _initFirebaseOnce();
+  if(!_fbDb||!getStoredToken()){ _apiConnected=false; return false; }
   try{
+    const ts = new Date().toISOString();
+    DB._lastSave = ts;
     const payload={...DB}; delete payload.kpis;
-    const r=await fetch(`${API_URL}?action=save`,{
-      method:'POST',headers:apiHeaders(),
-      body:JSON.stringify({
-        data: payload,
-        version: _dataVersion,  // kirim version untuk optimistic locking
-      })
-    });
-    const j=await r.json();
-    _apiConnected=j.success;
-    if(j.success){
-      _dataVersion = j.version || null; // update version ke yang terbaru
-      if(j.merged && j.data){
-        // Server melakukan merge — update local DB dengan hasil merge
-        Object.assign(DB, j.data);
-        syncKPIsFromPrograms();
-        saveToLocalStorage();
-        showMergeNotification(j.message);
-      }
-    }
-    return j.success;
+    payload._saved = ts;
+    await _fbDb.ref(FB_DATA_PATH).set(payload);
+    _dataVersion = ts;
+    _apiConnected = true;
+    return true;
   }catch(e){ _apiConnected=false; return false; }
 }
 
@@ -3706,11 +3721,11 @@ function updateConnectionBadge(){
   el.title=_apiConnected?'Database MySQL terhubung':'Database tidak terhubung';
 }
 function clearLocalStorage(){ if(!confirm('Reset semua data ke kondisi awal?')) return; localStorage.removeItem(LS_KEY); location.reload(); }
-// openFirebaseSetup handled above
-// saveFirebaseSetup handled above
-// retryFirebase handled above
-// disconnectAndResetFirebase handled above
-// getFirebaseConfig handled above — uses FIREBASE_CONFIG_DEFAULT
+function openFirebaseSetup(){ alert('Aplikasi menggunakan MySQL. Tidak perlu setup Firebase.'); }
+function saveFirebaseSetup(){}
+function retryFirebase(){}
+function disconnectAndResetFirebase(){}
+function getFirebaseConfig(){ return null; }
 
 // ════ AUTH ════
 function ensureAdminUser(){
@@ -3861,9 +3876,6 @@ function renderGroupHeader(name,count){
   document.querySelector('.main').style.visibility='hidden';
   try{ localStorage.removeItem('ikera_v2_data'); localStorage.removeItem('ikera_v3_data'); }catch(e){}
   loadFromLocalStorage();
-  // Init Firebase dengan config default
-  const _fbCfg = getFirebaseConfig();
-  if(_fbCfg) initFirebase(_fbCfg);
   ensureAdminUser();
   syncKPIsFromPrograms(); autoCheckAuditOverdue(); autoCheckLicenseStatus(); updateBadges(); updateConnectionBadge();
   const token=getStoredToken(); const sess=getSession();
