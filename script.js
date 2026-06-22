@@ -3577,15 +3577,15 @@ function closeModal(e){if(e.target===document.getElementById('modal-overlay'))cl
 // STORAGE: Firebase Auth + Realtime Database
 // ════════════════════════════════════════════════
 
-// ── Firebase Config — ganti dengan config project Anda ──
+// ── Firebase Config ──
 const FIREBASE_CONFIG = {
-  apiKey:            "PASTE_API_KEY_HERE",
+  apiKey:            "AIzaSyAwTzNZeBo2I8SH4gtuq5A4RR0dct1A4BE",
   authDomain:        "dirops-monitoring-avi.firebaseapp.com",
   databaseURL:       "https://dirops-monitoring-avi-default-rtdb.asia-southeast1.firebasedatabase.app",
   projectId:         "dirops-monitoring-avi",
-  storageBucket:     "dirops-monitoring-avi.appspot.com",
-  messagingSenderId: "PASTE_MESSAGING_SENDER_ID_HERE",
-  appId:             "PASTE_APP_ID_HERE"
+  storageBucket:     "dirops-monitoring-avi.firebasestorage.app",
+  messagingSenderId: "74500888017",
+  appId:             "1:74500888017:web:0d82c3f03973b4dd66bcf0"
 };
 
 const FB_DATA_PATH = 'dirops/data';
